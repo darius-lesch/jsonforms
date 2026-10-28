@@ -1,6 +1,7 @@
 import { JsonSchema, UISchemaElement } from '../models';
 import { JsonFormsState, getAjv } from '../store';
 import { hasEnableRule, hasReadonlyRule, isEnabled, isReadonly } from '../util';
+import { configDefault } from '../configDefault';
 
 /**
  * Indicates whether the given `uischema` element shall be enabled or disabled.
@@ -15,13 +16,23 @@ export const isInherentlyEnabled = (
   rootData: any,
   config: any
 ) => {
-  if (!config?.separateReadonlyFromDisabled && state?.jsonforms?.readonly) {
+  const separateReadonly =
+    config?.separateReadonlyFromDisabled ??
+    configDefault.separateReadonlyFromDisabled;
+
+  if (!separateReadonly && state?.jsonforms?.readonly) {
     return false;
   }
   if (uischema && hasEnableRule(uischema)) {
     return isEnabled(uischema, rootData, ownProps?.path, getAjv(state), config);
   }
-  if (!config?.separateReadonlyFromDisabled) {
+  if (typeof uischema?.options?.disabled === 'boolean') {
+    return !uischema.options.disabled;
+  }
+  if (typeof config?.disabled === 'boolean') {
+    return !config.disabled;
+  }
+  if (!separateReadonly) {
     if (typeof uischema?.options?.readonly === 'boolean') {
       return !uischema.options.readonly;
     }

@@ -29,6 +29,7 @@ import {
   Condition,
   LeafCondition,
   OrCondition,
+  Rule,
   RuleEffect,
   SchemaBasedCondition,
   Scopable,
@@ -107,14 +108,33 @@ const evaluateCondition = (
   }
 };
 
+/**
+ * Returns all rules attached to the given UI schema element,
+ * normalizing both `rule` and `rules`.
+ */
+export const getRules = (uischema: UISchemaElement): Rule[] => {
+  if (!uischema) {
+    return [];
+  }
+  const rules: Rule[] = [];
+  if (uischema.rule) {
+    rules.push(uischema.rule);
+  }
+  if (Array.isArray(uischema.rules)) {
+    rules.push(...uischema.rules);
+  }
+  return rules;
+};
+
 const isRuleFulfilled = (
   uischema: UISchemaElement,
+  rule: Rule,
   data: any,
   path: string,
   ajv: Ajv,
   config: unknown
 ): boolean => {
-  const condition = uischema.rule.condition;
+  const condition = rule?.condition;
   return evaluateCondition(data, uischema, condition, path, ajv, config);
 };
 
@@ -125,17 +145,28 @@ export const evalVisibility = (
   ajv: Ajv,
   config: unknown
 ): boolean => {
-  const fulfilled = isRuleFulfilled(uischema, data, path, ajv, config);
+  const rules = getRules(uischema);
+  const visibilityRules = rules.filter(
+    (rule) => rule.effect === RuleEffect.HIDE || rule.effect === RuleEffect.SHOW
+  );
 
-  switch (uischema.rule.effect) {
-    case RuleEffect.HIDE:
-      return !fulfilled;
-    case RuleEffect.SHOW:
-      return fulfilled;
-    // visible by default
-    default:
-      return true;
+  if (visibilityRules.length === 0) {
+    return true;
   }
+
+  // Restrictive override: if any visibility rule evaluates to hidden (false),
+  // the element is hidden (false). Only visible if every visibility rule evaluates to true.
+  return visibilityRules.every((rule) => {
+    const fulfilled = isRuleFulfilled(uischema, rule, data, path, ajv, config);
+    switch (rule.effect) {
+      case RuleEffect.HIDE:
+        return !fulfilled;
+      case RuleEffect.SHOW:
+        return fulfilled;
+      default:
+        return true;
+    }
+  });
 };
 
 export const evalEnablement = (
@@ -145,17 +176,29 @@ export const evalEnablement = (
   ajv: Ajv,
   config: unknown
 ): boolean => {
-  const fulfilled = isRuleFulfilled(uischema, data, path, ajv, config);
+  const rules = getRules(uischema);
+  const enablementRules = rules.filter(
+    (rule) =>
+      rule.effect === RuleEffect.DISABLE || rule.effect === RuleEffect.ENABLE
+  );
 
-  switch (uischema.rule.effect) {
-    case RuleEffect.DISABLE:
-      return !fulfilled;
-    case RuleEffect.ENABLE:
-      return fulfilled;
-    // enabled by default
-    default:
-      return true;
+  if (enablementRules.length === 0) {
+    return true;
   }
+
+  // Restrictive override: if any enablement rule evaluates to disabled (false),
+  // the element is disabled (false). Only enabled if every enablement rule evaluates to true.
+  return enablementRules.every((rule) => {
+    const fulfilled = isRuleFulfilled(uischema, rule, data, path, ajv, config);
+    switch (rule.effect) {
+      case RuleEffect.DISABLE:
+        return !fulfilled;
+      case RuleEffect.ENABLE:
+        return fulfilled;
+      default:
+        return true;
+    }
+  });
 };
 
 export const evalReadonly = (
@@ -165,50 +208,55 @@ export const evalReadonly = (
   ajv: Ajv,
   config: unknown
 ): boolean => {
-  const fulfilled = isRuleFulfilled(uischema, data, path, ajv, config);
+  const rules = getRules(uischema);
+  const readonlyRules = rules.filter(
+    (rule) =>
+      rule.effect === RuleEffect.READONLY ||
+      rule.effect === RuleEffect.WRITABLE
+  );
 
-  switch (uischema.rule.effect) {
-    case RuleEffect.WRITABLE:
-      return !fulfilled;
-    case RuleEffect.READONLY:
-      return fulfilled;
-    // writable by default
-    default:
-      return false;
+  if (readonlyRules.length === 0) {
+    return false;
   }
+
+  // Restrictive override: if any readonly rule evaluates to readonly (true),
+  // the element is readonly (true).
+  return readonlyRules.some((rule) => {
+    const fulfilled = isRuleFulfilled(uischema, rule, data, path, ajv, config);
+    switch (rule.effect) {
+      case RuleEffect.WRITABLE:
+        return !fulfilled;
+      case RuleEffect.READONLY:
+        return fulfilled;
+      default:
+        return false;
+    }
+  });
 };
 
 export const hasShowRule = (uischema: UISchemaElement): boolean => {
-  if (
-    uischema.rule &&
-    (uischema.rule.effect === RuleEffect.SHOW ||
-      uischema.rule.effect === RuleEffect.HIDE)
-  ) {
-    return true;
-  }
-  return false;
+  const rules = getRules(uischema);
+  return rules.some(
+    (rule) =>
+      rule.effect === RuleEffect.SHOW || rule.effect === RuleEffect.HIDE
+  );
 };
 
 export const hasEnableRule = (uischema: UISchemaElement): boolean => {
-  if (
-    uischema.rule &&
-    (uischema.rule.effect === RuleEffect.ENABLE ||
-      uischema.rule.effect === RuleEffect.DISABLE)
-  ) {
-    return true;
-  }
-  return false;
+  const rules = getRules(uischema);
+  return rules.some(
+    (rule) =>
+      rule.effect === RuleEffect.ENABLE || rule.effect === RuleEffect.DISABLE
+  );
 };
 
 export const hasReadonlyRule = (uischema: UISchemaElement): boolean => {
-  if (
-    uischema.rule &&
-    (uischema.rule.effect === RuleEffect.READONLY ||
-      uischema.rule.effect === RuleEffect.WRITABLE)
-  ) {
-    return true;
-  }
-  return false;
+  const rules = getRules(uischema);
+  return rules.some(
+    (rule) =>
+      rule.effect === RuleEffect.READONLY ||
+      rule.effect === RuleEffect.WRITABLE
+  );
 };
 
 export const isVisible = (
@@ -218,7 +266,7 @@ export const isVisible = (
   ajv: Ajv,
   config: unknown
 ): boolean => {
-  if (uischema.rule) {
+  if (hasShowRule(uischema)) {
     return evalVisibility(uischema, data, path, ajv, config);
   }
 
@@ -232,7 +280,7 @@ export const isEnabled = (
   ajv: Ajv,
   config: unknown
 ): boolean => {
-  if (uischema.rule) {
+  if (hasEnableRule(uischema)) {
     return evalEnablement(uischema, data, path, ajv, config);
   }
 
@@ -246,7 +294,7 @@ export const isReadonly = (
   ajv: Ajv,
   config: unknown
 ): boolean => {
-  if (uischema.rule) {
+  if (hasReadonlyRule(uischema)) {
     return evalReadonly(uischema, data, path, ajv, config);
   }
 

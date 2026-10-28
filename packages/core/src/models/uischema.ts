@@ -225,8 +225,14 @@ export interface BaseUISchemaElement {
 
   /**
    * An optional rule.
+   * @deprecated Use `rules` instead.
    */
   rule?: Rule;
+
+  /**
+   * An optional array of rules.
+   */
+  rules?: Rule[];
 
   /**
    * Any additional options.

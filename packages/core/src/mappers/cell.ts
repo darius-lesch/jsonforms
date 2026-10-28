@@ -54,6 +54,7 @@ import {
   JsonFormsState,
 } from '../store';
 import { isInherentlyEnabled, isInherentlyReadonly } from './util';
+import { configDefault } from '../configDefault';
 
 export interface OwnPropsOfCell extends OwnPropsOfControl {
   data?: any;
@@ -129,11 +130,11 @@ export const mapStateToCellProps = (
    * flag when separateReadonlyFromDisabled is disabled).
    * For example it would be quite expensive to evaluate the same ui schema
    * rule again and again for each cell of a table. */
+  const separateReadonly =
+    config?.separateReadonlyFromDisabled ??
+    configDefault.separateReadonlyFromDisabled;
   let enabled;
-  if (
-    !config?.separateReadonlyFromDisabled &&
-    state.jsonforms.readonly === true
-  ) {
+  if (!separateReadonly && state.jsonforms.readonly === true) {
     enabled = false;
   } else if (typeof ownProps.enabled === 'boolean') {
     enabled = ownProps.enabled;

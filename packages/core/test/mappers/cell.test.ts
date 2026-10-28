@@ -206,7 +206,7 @@ test('mapStateToCellProps - enabled via state ', (t) => {
   t.true(props.enabled);
 });
 
-test('mapStateToCellProps - disabled via global readonly', (t) => {
+test('mapStateToCellProps - readonly via global readonly by default', (t) => {
   const ownProps = {
     uischema: coreUISchema,
   };
@@ -214,22 +214,36 @@ test('mapStateToCellProps - disabled via global readonly', (t) => {
   state.jsonforms.readonly = true;
 
   const props = mapStateToCellProps(state, ownProps);
+  t.true(props.enabled);
+  t.true(props.readonly);
+});
+
+test('mapStateToCellProps - disabled via global readonly in legacy mode', (t) => {
+  const ownProps = {
+    uischema: coreUISchema,
+  };
+  const state: JsonFormsState = createState(coreUISchema);
+  state.jsonforms.readonly = true;
+  state.jsonforms.config = { separateReadonlyFromDisabled: false };
+
+  const props = mapStateToCellProps(state, ownProps);
   t.false(props.enabled);
 });
 
-test('mapStateToCellProps - disabled via global readonly beats enabled via ownProps', (t) => {
+test('mapStateToCellProps - disabled via global readonly beats enabled via ownProps in legacy mode', (t) => {
   const ownProps = {
     uischema: coreUISchema,
     enabled: true,
   };
   const state: JsonFormsState = createState(coreUISchema);
   state.jsonforms.readonly = true;
+  state.jsonforms.config = { separateReadonlyFromDisabled: false };
 
   const props = mapStateToCellProps(state, ownProps);
   t.false(props.enabled);
 });
 
-test('mapStateToCellProps - disabled via global readonly beats enabled via rule', (t) => {
+test('mapStateToCellProps - disabled via global readonly beats enabled via rule in legacy mode', (t) => {
   const uischema = {
     ...coreUISchema,
     rule: enableRule,
@@ -239,6 +253,7 @@ test('mapStateToCellProps - disabled via global readonly beats enabled via rule'
   };
   const state: JsonFormsState = createState(uischema);
   state.jsonforms.readonly = true;
+  state.jsonforms.config = { separateReadonlyFromDisabled: false };
 
   const props = mapStateToCellProps(state, ownProps);
   t.false(props.enabled);

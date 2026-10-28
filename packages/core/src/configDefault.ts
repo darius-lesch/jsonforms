@@ -47,9 +47,9 @@ export const configDefault = {
   hideRequiredAsterisk: false,
 
   /**
-   * When false (default), readonly is treated as disabled for backward compatibility.
-   * When true, readonly and enabled are handled separately and exposed to renderers,
+   * When false, readonly is treated as disabled for backward compatibility.
+   * When true (default), readonly and enabled are handled separately and exposed to renderers,
    * allowing UI libraries to distinguish between disabled and readonly states.
    */
-  separateReadonlyFromDisabled: false,
+  separateReadonlyFromDisabled: true,
 };

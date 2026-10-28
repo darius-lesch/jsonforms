@@ -135,3 +135,65 @@ describe('StringControlRenderer.vue with suggestion', () => {
     expect(wrapper.html()).toMatchSnapshot();
   });
 });
+
+describe('StringControlRenderer.vue readonly vs disabled', () => {
+  const renderers = [stringControlRendererEntry];
+  const data = 'test value';
+  const schemaWithReadOnly = {
+    type: 'string',
+    title: 'Readonly Field',
+    readOnly: true,
+  };
+  const uischema = {
+    type: 'Control',
+    scope: '#',
+  };
+
+  it('renders input as readonly and focusable (not disabled) by default', () => {
+    clearAllIds();
+    const wrapper = mountJsonForms(
+      data,
+      schemaWithReadOnly,
+      renderers,
+      uischema,
+    );
+    const input = wrapper.find('input[type="text"]');
+    expect(input.exists()).toBe(true);
+    expect(input.attributes('readonly')).toBeDefined();
+    expect(input.attributes('disabled')).toBeUndefined();
+  });
+
+  it('renders input as disabled in legacy mode (separateReadonlyFromDisabled: false)', () => {
+    clearAllIds();
+    const wrapper = mountJsonForms(
+      data,
+      schemaWithReadOnly,
+      renderers,
+      uischema,
+      { separateReadonlyFromDisabled: false },
+    );
+    const input = wrapper.find('input[type="text"]');
+    expect(input.exists()).toBe(true);
+    expect(input.attributes('disabled')).toBeDefined();
+  });
+
+  it('renders input as disabled via options.disabled: true', () => {
+    clearAllIds();
+    const plainSchema = { type: 'string' };
+    const uischemaWithDisabled = {
+      type: 'Control',
+      scope: '#',
+      options: { disabled: true },
+    };
+    const wrapper = mountJsonForms(
+      data,
+      plainSchema,
+      renderers,
+      uischemaWithDisabled,
+    );
+    const input = wrapper.find('input[type="text"]');
+    expect(input.exists()).toBe(true);
+    expect(input.attributes('disabled')).toBeDefined();
+    expect(input.attributes('readonly')).toBeUndefined();
+  });
+});
